@@ -2,6 +2,23 @@
 
 Golang chat app built mainly for learning Go.
 
+## Dependencies
+
+- [Docker](https://www.docker.com/)
+- [Docker-Compose](https://docs.docker.com/compose/)
+- [Glide](https://github.com/Masterminds/glide)
+
+## Run
+
+    ```bash
+    glide up
+    docker-compose up
+    ```
+
+## Redis Store
+
+This utilizes Redis as a store for connection and user info.
+
 ## Google Integration
 
 This uses [Google OAuth APIs](https://developers.google.com/identity/protocols/OAuth2) to allow a user to login through Google

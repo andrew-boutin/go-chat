@@ -1,4 +1,8 @@
+# App related
 creds.json
+
+# Glide related
+vendor
 
 # Binaries for programs and plugins
 *.exe

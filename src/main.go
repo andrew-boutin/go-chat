@@ -8,11 +8,16 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
+
+// Redis
+var redisClient *redis.Client
 
 // WebSocket members
 // Map of WebSocket pointers
@@ -41,6 +46,15 @@ type Credentials struct {
 	Csecret string `json:"csecret"`
 }
 
+type User struct {
+	ID                       string `json:"sub"`
+	Name                     string `json:"name"`
+	FirstName                string `json:"given_name`
+	LastName                 string `json:"family_name`
+	GoogleProfilePictureLink string `json:"picture"`
+	Email                    string `json:"email"`
+}
+
 // Basic initialization
 func init() {
 	log.SetOutput(os.Stdout)
@@ -65,6 +79,16 @@ func init() {
 		},
 		Endpoint: google.Endpoint,
 	}
+
+	// Inside the compose network we can use the service name for the address
+	redisClient = redis.NewClient(&redis.Options{
+		Addr:     "redis:6379",
+		Password: "",
+		DB:       0, // Default
+	})
+
+	pong, err := redisClient.Ping().Result()
+	log.Printf(pong, err)
 }
 
 func randToken() string {
@@ -81,14 +105,30 @@ func getLoginURL(state string) string {
 func loginHandler(w http.ResponseWriter, req *http.Request) {
 	// Create state info, store in a session, and generate the Google URL for the user to begin login
 	state = randToken()
-	// TODO: Save the state in a session
-	w.Write([]byte("<html><body>Go Chat<a href='" + getLoginURL(state) + "'>Login with Google</a></body></html>"))
+	redisClient.Set(state, false, time.Minute)
+	w.Write([]byte("<html><body>Go-Chat<br><a href='" + getLoginURL(state) + "'>Login with Google</a><br>to start chatting!</body></html>"))
 }
 
 // Handle user redirect back from Google login to get oauth token
 func authHandler(w http.ResponseWriter, req *http.Request) {
-	// TODO: compare to stored state info
-	// s = req.URL.Query().Get("state")
+	// Get the state from the User's request
+	var s = req.URL.Query().Get("state")
+
+	_, err := redisClient.Get(s).Result()
+
+	if err == redis.Nil {
+		log.Printf("No matching state in the store, not accepting auth request.")
+		http.Redirect(w, req, "/login", 302)
+		return
+	} else if err != nil {
+		log.Fatal(err)
+		http.Redirect(w, req, "/login", 302)
+		return
+	} else {
+		log.Printf("Found state in store, completing auth request.")
+		redisClient.Set(state, true, 0)
+		// TODO: State info cleanup
+	}
 
 	tok, err := conf.Exchange(oauth2.NoContext, req.URL.Query().Get("code"))
 
@@ -107,7 +147,14 @@ func authHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	defer email.Body.Close()
 	data, _ := ioutil.ReadAll(email.Body)
-	log.Println("Email body: ", string(data))
+
+	// TODO: If a new person, then store their info in Redis, if not new, load their stuff
+
+	// TODO: Require auth to go to pages..
+
+	var user User
+	err = json.Unmarshal(data, &user)
+	log.Printf("%+v", user)
 }
 
 // Take an HTTP request and upgrade it to a WebSocket

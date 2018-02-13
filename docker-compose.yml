@@ -1,0 +1,12 @@
+version: '2'
+services:
+  go-chat:
+    image: "golang:1.7-alpine"
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/go/src/go-chat
+    working_dir: /go/src/go-chat
+    command: go run src/main.go
+  redis:
+    image: redis:alpine
