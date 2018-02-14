@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -107,35 +106,30 @@ func getLoginURL(state string) string {
 func loginHandler(c *gin.Context) {
 	// Create state info, store in a session, and generate the Google URL for the user to begin login
 	state = randToken()
-	redisClient.Set(state, false, time.Minute)
+	session := sessions.Default(c)
+	session.Set("state", state)
+	session.Save()
 	c.Writer.Write([]byte("<html><body>Go-Chat<br><a href='" + getLoginURL(state) + "'>Login with Google</a><br>to start chatting!</body></html>"))
 }
 
 // Handle user redirect back from Google login to get oauth token
 func authHandler(c *gin.Context) {
 	// Get the state from the User's request
-	var s = c.Request.URL.Query().Get("state")
+	session := sessions.Default(c)
+	retrievedState := session.Get("state")
 
-	_, err := redisClient.Get(s).Result()
-
-	if err == redis.Nil {
-		log.Printf("No matching state in the store, not accepting auth request.")
+	// TODO: How is the session cleanup handled?
+	if retrievedState != c.Query("state") {
+		log.Printf("No matching state found for the session, not accepting auth request.")
 		c.Redirect(302, "/login")
+		// TODO: c.AbortWithError(http.StatusUnauthorized, fmt.Errorf("Invalid session state: %s", retrievedState))?
 		return
-	} else if err != nil {
-		log.Fatal(err)
-		c.Redirect(302, "/login")
-		return
-	} else {
-		log.Printf("Found state in store, completing auth request.")
-		redisClient.Set(state, true, 0)
-		// TODO: State info cleanup...
 	}
 
-	tok, err := conf.Exchange(oauth2.NoContext, c.Request.URL.Query().Get("code"))
+	tok, err := conf.Exchange(oauth2.NoContext, c.Query("code"))
 
 	if err != nil {
-		// TODO: Handle bad request here
+		// TODO: c.AbortWithError(http.StatusBadRequest, err)?
 		log.Fatal(err)
 		return
 	}
