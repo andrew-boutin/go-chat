@@ -138,8 +138,8 @@ func authHandler(c *gin.Context) {
 
 	email, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
 	if err != nil {
-		log.Fatal()
-		return
+		log.Fatal(err)
+		return // TODO:
 	}
 	defer email.Body.Close()
 	data, _ := ioutil.ReadAll(email.Body)
@@ -149,7 +149,22 @@ func authHandler(c *gin.Context) {
 	var user User
 	err = json.Unmarshal(data, &user)
 
+	if err != nil {
+		log.Fatal(err)
+		return // TODO:
+	}
+
 	storeUser(user)
+
+	session.Set("user-id", user.ID)
+	err = session.Save()
+
+	if err != nil {
+		log.Fatal(err)
+		return // TODO:
+	}
+
+	c.Redirect(302, "/")
 }
 
 // Get a User from Redis
@@ -229,7 +244,6 @@ func handleMessages() {
 
 			// Get rid of the connection on errors
 			if err != nil {
-				log.Printf("handleMessages erroring out")
 				log.Printf("error: %v", err)
 				ws.Close()
 				delete(clients, ws)
@@ -238,9 +252,27 @@ func handleMessages() {
 	}
 }
 
-// Program entry point
+// Gin Middleware that requires the user to be authenticated in order to go to certain routes
+func AuthRequired() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		session := sessions.Default(c)
+		v := session.Get("user-id")
+
+		// If this is a new session then redirect to the login page
+		if v == nil {
+			c.Redirect(302, "/login")
+			return
+		}
+
+		c.Next()
+	}
+}
+
 func main() {
+	// Get our Gin engine
 	r := gin.Default()
+
+	// Create the Redis session store
 	store, err := sessions.NewRedisStore(10, "tcp", redisAddr, "", []byte("secret"))
 
 	if err != nil {
@@ -248,34 +280,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Set up Gin to use Redis for session management
+	// Set up Gin to use Redis session store
 	r.Use(sessions.Sessions("mysession", store))
 
-	/* TODO:
-	r.GET("/incr", func(c *gin.Context) {
-		session := sessions.Default(c)
-		var count int
-		v := session.Get("count")
-		if v == nil {
-			count = 0
-		} else {
-			count = v.(int)
-			count++
-		}
-		session.Set("count", count)
-		session.Save()
-		c.JSON(200, gin.H{"count": count})
-	}))
-	*/
+	// Protect our endpoints w/ custom middleware
+	authorized := r.Group("/")
+	authorized.Use(AuthRequired())
+	{
+		// Allow js and css static files to be accessed
+		authorized.Static("/static", "./static")
 
-	// Allow js and css static files to be accessed
-	r.Static("/static", "./static")
+		// Set up serving the site index
+		authorized.StaticFile("/", "./html")
 
-	// Set up serving the site index
-	r.StaticFile("/", "./html")
-
-	// Set up entry point for WebSocket connections
-	r.GET("/ws", handleConnection)
+		// Set up entry point for WebSocket connections
+		authorized.GET("/ws", handleConnection)
+	}
 
 	// Auth handlers
 	r.GET("/login", loginHandler)
@@ -287,6 +307,5 @@ func main() {
 	// Start up the server
 	log.Printf("Starting server.")
 	r.Run(":8080")
-	//log.Fatal(http.ListenAndServe(":8080", nil))
 	log.Printf("Server exited")
 }
