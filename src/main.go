@@ -10,6 +10,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
 	"golang.org/x/oauth2"
@@ -18,6 +20,7 @@ import (
 
 // Redis
 var redisClient *redis.Client
+var redisAddr = "redis:6379"
 
 // WebSocket members
 // Map of WebSocket pointers
@@ -82,7 +85,7 @@ func init() {
 
 	// Inside the compose network we can use the service name for the address
 	redisClient = redis.NewClient(&redis.Options{
-		Addr:     "redis:6379",
+		Addr:     redisAddr,
 		Password: "",
 		DB:       0, // Default
 	})
@@ -152,7 +155,6 @@ func authHandler(w http.ResponseWriter, req *http.Request) {
 
 	var user User
 	err = json.Unmarshal(data, &user)
-	log.Printf("User from google api: %+v", user)
 
 	storeUser(user)
 }
@@ -245,6 +247,34 @@ func handleMessages() {
 
 // Program entry point
 func main() {
+	r := gin.Default() // TODO: What's this?
+	store, err := sessions.NewRedisStore(10, "tcp", redisAddr, "", []byte("secret"))
+
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(1)
+	}
+
+	r.Use(sessions.Sessions("mysession", store))
+
+	/* TODO:
+	r.GET("/incr", func(c *gin.Context) {
+		session := sessions.Default(c)
+		var count int
+		v := session.Get("count")
+		if v == nil {
+			count = 0
+		} else {
+			count = v.(int)
+			count++
+		}
+		session.Set("count", count)
+		session.Save()
+		c.JSON(200, gin.H{"count": count})
+	})
+	.Run(":8000")
+	*/
+
 	// Allow js and css static files to be accessed
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 
