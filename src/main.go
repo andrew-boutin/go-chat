@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"time"
 
@@ -105,27 +104,27 @@ func getLoginURL(state string) string {
 }
 
 // Handle user attempts to login
-func loginHandler(w http.ResponseWriter, req *http.Request) {
+func loginHandler(c *gin.Context) {
 	// Create state info, store in a session, and generate the Google URL for the user to begin login
 	state = randToken()
 	redisClient.Set(state, false, time.Minute)
-	w.Write([]byte("<html><body>Go-Chat<br><a href='" + getLoginURL(state) + "'>Login with Google</a><br>to start chatting!</body></html>"))
+	c.Writer.Write([]byte("<html><body>Go-Chat<br><a href='" + getLoginURL(state) + "'>Login with Google</a><br>to start chatting!</body></html>"))
 }
 
 // Handle user redirect back from Google login to get oauth token
-func authHandler(w http.ResponseWriter, req *http.Request) {
+func authHandler(c *gin.Context) {
 	// Get the state from the User's request
-	var s = req.URL.Query().Get("state")
+	var s = c.Request.URL.Query().Get("state")
 
 	_, err := redisClient.Get(s).Result()
 
 	if err == redis.Nil {
 		log.Printf("No matching state in the store, not accepting auth request.")
-		http.Redirect(w, req, "/login", 302)
+		c.Redirect(302, "/login")
 		return
 	} else if err != nil {
 		log.Fatal(err)
-		http.Redirect(w, req, "/login", 302)
+		c.Redirect(302, "/login")
 		return
 	} else {
 		log.Printf("Found state in store, completing auth request.")
@@ -133,7 +132,7 @@ func authHandler(w http.ResponseWriter, req *http.Request) {
 		// TODO: State info cleanup...
 	}
 
-	tok, err := conf.Exchange(oauth2.NoContext, req.URL.Query().Get("code"))
+	tok, err := conf.Exchange(oauth2.NoContext, c.Request.URL.Query().Get("code"))
 
 	if err != nil {
 		// TODO: Handle bad request here
@@ -192,9 +191,9 @@ func storeUser(user User) {
 }
 
 // Take an HTTP request and upgrade it to a WebSocket
-func handleConnection(w http.ResponseWriter, req *http.Request) {
+func handleConnection(c *gin.Context) {
 	// Upgrade from HTTP request to WebSocket
-	ws, err := upgrader.Upgrade(w, req, nil)
+	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 
 	if err != nil {
 		log.Fatal(err)
@@ -247,7 +246,7 @@ func handleMessages() {
 
 // Program entry point
 func main() {
-	r := gin.Default() // TODO: What's this?
+	r := gin.Default()
 	store, err := sessions.NewRedisStore(10, "tcp", redisAddr, "", []byte("secret"))
 
 	if err != nil {
@@ -255,6 +254,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Set up Gin to use Redis for session management
 	r.Use(sessions.Sessions("mysession", store))
 
 	/* TODO:
@@ -271,28 +271,28 @@ func main() {
 		session.Set("count", count)
 		session.Save()
 		c.JSON(200, gin.H{"count": count})
-	})
-	.Run(":8000")
+	}))
 	*/
 
 	// Allow js and css static files to be accessed
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
+	r.Static("/static", "./static")
 
 	// Set up serving the site index
-	http.Handle("/", http.FileServer(http.Dir("./html")))
+	r.StaticFile("/", "./html")
 
 	// Set up entry point for WebSocket connections
-	http.HandleFunc("/ws", handleConnection)
+	r.GET("/ws", handleConnection)
 
 	// Auth handlers
-	http.HandleFunc("/login", loginHandler)
-	http.HandleFunc("/auth", authHandler)
+	r.GET("/login", loginHandler)
+	r.GET("/auth", authHandler)
 
 	// Start concurrent process for handling incoming connections
 	go handleMessages()
 
 	// Start up the server
 	log.Printf("Starting server.")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	r.Run(":8080")
+	//log.Fatal(http.ListenAndServe(":8080", nil))
 	log.Printf("Server exited")
 }

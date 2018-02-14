@@ -22,7 +22,7 @@ ws.onmessage = function(msgevent){
 };
 
 function displayMsg(msg){
-    textArea.value += "\n" + msg;
+    textArea.innerHTML += "<br>" + msg;
 };
 
 function sendMsg() {

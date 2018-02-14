@@ -17,7 +17,11 @@ Golang chat app built mainly for learning Go.
 
 ## Redis Store
 
-This utilizes Redis as a store for connection and user info.
+This utilizes [Redis](https://redis.io/) as a store for connection and user info.
+
+## Session Management and Middleware
+
+This uses [Gin](https://github.com/gin-gonic/gin) and [Gin Sessions](https://github.com/gin-contrib/sessions) for session management, tied into the Redis store, and for middleware.
 
 ## Google Integration
 
