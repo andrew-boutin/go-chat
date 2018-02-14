@@ -127,7 +127,7 @@ func authHandler(w http.ResponseWriter, req *http.Request) {
 	} else {
 		log.Printf("Found state in store, completing auth request.")
 		redisClient.Set(state, true, 0)
-		// TODO: State info cleanup
+		// TODO: State info cleanup...
 	}
 
 	tok, err := conf.Exchange(oauth2.NoContext, req.URL.Query().Get("code"))
@@ -148,13 +148,45 @@ func authHandler(w http.ResponseWriter, req *http.Request) {
 	defer email.Body.Close()
 	data, _ := ioutil.ReadAll(email.Body)
 
-	// TODO: If a new person, then store their info in Redis, if not new, load their stuff
-
 	// TODO: Require auth to go to pages..
 
 	var user User
 	err = json.Unmarshal(data, &user)
-	log.Printf("%+v", user)
+	log.Printf("User from google api: %+v", user)
+
+	storeUser(user)
+}
+
+// Get a User from Redis
+func getStoredUser(userID string) User {
+	var user User
+	userAsString, err := redisClient.Get("user:" + userID).Result()
+
+	if err != nil {
+		log.Fatal("Failed to read user from store.", err)
+		return user
+	}
+
+	err = json.Unmarshal([]byte(userAsString), &user)
+
+	if err != nil {
+		log.Fatal("Failed to convert string to User.", err)
+		return user
+	}
+
+	return user
+}
+
+// Store the User info in Redis
+func storeUser(user User) {
+	userAsJson, err := json.Marshal(user)
+
+	if err != nil {
+		log.Fatal("Failed to store user in store.")
+		return
+	}
+
+	redisClient.Set("user:"+user.ID, string(userAsJson), 0)
 }
 
 // Take an HTTP request and upgrade it to a WebSocket
