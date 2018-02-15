@@ -22,7 +22,7 @@ var redisAddr = "redis:6379"
 
 // WebSocket members
 // Map of WebSocket pointers
-var clients = make(map[*websocket.Conn]bool)
+var clients = make(map[*websocket.Conn]string)
 
 // Channel queue for incoming messages from clients
 var broadcast = make(chan Message)
@@ -136,13 +136,13 @@ func authHandler(c *gin.Context) {
 
 	client := conf.Client(oauth2.NoContext, tok)
 
-	email, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
+	googleUserData, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
 	if err != nil {
 		log.Fatal(err)
 		return // TODO:
 	}
-	defer email.Body.Close()
-	data, _ := ioutil.ReadAll(email.Body)
+	defer googleUserData.Body.Close()
+	data, _ := ioutil.ReadAll(googleUserData.Body)
 
 	// TODO: Require auth to go to pages..
 
@@ -211,8 +211,15 @@ func handleConnection(c *gin.Context) {
 	// Close the WebSocket when exiting the function
 	defer ws.Close()
 
+	session := sessions.Default(c)
+	v := session.Get("user-id")
+	user := getStoredUser(v.(string))
+	email := user.Email
+	welcomeMsg := Message{"server", "Hello " + email}
+	err = ws.WriteJSON(welcomeMsg)
+
 	// Map the connection for tracking
-	clients[ws] = true
+	clients[ws] = email
 
 	for {
 		var msg Message
@@ -239,7 +246,8 @@ func handleMessages() {
 		msg := <-broadcast
 
 		// Send the message to all of the registered clients
-		for ws := range clients {
+		for ws, email := range clients {
+			msg.Username = email
 			err := ws.WriteJSON(msg)
 
 			// Get rid of the connection on errors

@@ -1,8 +1,8 @@
 # ToDo
 
-- [Tie login into chat](https://github.com/gin-gonic/gin)
-- [Sessions](https://github.com/gorilla/sessions)
+- Break out packages
 - Users present in room
 - Chat rooms
 - Page `css` styling
 - Only require docker / docker-compose to run
+  - Can build binary and map that into the container instead of having to glide first
