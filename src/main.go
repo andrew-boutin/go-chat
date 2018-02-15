@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -218,8 +219,27 @@ func handleConnection(c *gin.Context) {
 	welcomeMsg := Message{"server", "Hello " + email}
 	err = ws.WriteJSON(welcomeMsg)
 
+	if err != nil {
+		// TODO:
+		log.Fatal(err)
+	}
+
 	// Map the connection for tracking
 	clients[ws] = email
+
+	emails := make([]string, 0, len(clients))
+	for _, v := range clients {
+		emails = append(emails, v)
+	}
+	users := strings.Join(emails, ",")
+	usersMsg := Message{"users", users}
+	//err = ws.WriteJSON(usersMsg)
+	broadcast <- usersMsg
+
+	if err != nil {
+		// TODO:
+		log.Fatal(err)
+	}
 
 	for {
 		var msg Message
@@ -247,7 +267,11 @@ func handleMessages() {
 
 		// Send the message to all of the registered clients
 		for ws, email := range clients {
-			msg.Username = email
+			// Could be a system message that already defines the username
+			if msg.Username == "" {
+				msg.Username = email
+			}
+
 			err := ws.WriteJSON(msg)
 
 			// Get rid of the connection on errors
