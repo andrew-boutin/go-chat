@@ -1,7 +1,10 @@
-package: .
+package: github.com/andrew-boutin/go-chat
 import:
+- package: github.com/gin-contrib/sessions
+- package: github.com/gin-gonic/gin
+  version: v1.2
 - package: github.com/go-redis/redis
-  version: v6.8.3
+  version: v6.9.0
 - package: github.com/gorilla/websocket
   version: v1.2.0
 - package: golang.org/x/oauth2

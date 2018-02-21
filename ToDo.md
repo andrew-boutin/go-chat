@@ -1,6 +1,6 @@
 # ToDo
 
-- Break out packages
+- Tests
 - Users present in room
 - Chat rooms
 - Page `css` styling

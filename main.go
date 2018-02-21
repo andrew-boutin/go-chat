@@ -9,16 +9,17 @@ import (
 	"os"
 	"strings"
 
+	"github.com/andrew-boutin/go-chat/db"
+	"github.com/andrew-boutin/go-chat/user"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
 
-// Redis
-var redisClient *redis.Client
+// Inside the compose network we can use the service name for the address
 var redisAddr = "redis:6379"
 
 // WebSocket members
@@ -36,25 +37,17 @@ var cred Credentials
 var conf *oauth2.Config
 var state string
 
+// Message holds a chat message
 type Message struct {
 	// Backticks inform Go on how to marshall struct/JSON
 	Username string `json:"username"`
 	Message  string `json:"message"`
 }
 
-// Client Id / Secret Credentials
+// Credentials holds the client ID and secret
 type Credentials struct {
 	Cid     string `json:"cid"`
 	Csecret string `json:"csecret"`
-}
-
-type User struct {
-	ID                       string `json:"sub"`
-	Name                     string `json:"name"`
-	FirstName                string `json:"given_name`
-	LastName                 string `json:"family_name`
-	GoogleProfilePictureLink string `json:"picture"`
-	Email                    string `json:"email"`
 }
 
 // Basic initialization
@@ -82,15 +75,7 @@ func init() {
 		Endpoint: google.Endpoint,
 	}
 
-	// Inside the compose network we can use the service name for the address
-	redisClient = redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: "",
-		DB:       0, // Default
-	})
-
-	pong, err := redisClient.Ping().Result()
-	log.Printf(pong, err)
+	db.InitClient(redisAddr)
 }
 
 func randToken() string {
@@ -147,7 +132,7 @@ func authHandler(c *gin.Context) {
 
 	// TODO: Require auth to go to pages..
 
-	var user User
+	var user user.User
 	err = json.Unmarshal(data, &user)
 
 	if err != nil {
@@ -155,7 +140,7 @@ func authHandler(c *gin.Context) {
 		return // TODO:
 	}
 
-	storeUser(user)
+	db.StoreUser(user)
 
 	session.Set("user-id", user.ID)
 	err = session.Save()
@@ -166,38 +151,6 @@ func authHandler(c *gin.Context) {
 	}
 
 	c.Redirect(302, "/")
-}
-
-// Get a User from Redis
-func getStoredUser(userID string) User {
-	var user User
-	userAsString, err := redisClient.Get("user:" + userID).Result()
-
-	if err != nil {
-		log.Fatal("Failed to read user from store.", err)
-		return user
-	}
-
-	err = json.Unmarshal([]byte(userAsString), &user)
-
-	if err != nil {
-		log.Fatal("Failed to convert string to User.", err)
-		return user
-	}
-
-	return user
-}
-
-// Store the User info in Redis
-func storeUser(user User) {
-	userAsJson, err := json.Marshal(user)
-
-	if err != nil {
-		log.Fatal("Failed to store user in store.")
-		return
-	}
-
-	redisClient.Set("user:"+user.ID, string(userAsJson), 0)
 }
 
 // Take an HTTP request and upgrade it to a WebSocket
@@ -214,7 +167,7 @@ func handleConnection(c *gin.Context) {
 
 	session := sessions.Default(c)
 	v := session.Get("user-id")
-	user := getStoredUser(v.(string))
+	user := db.GetStoredUser(v.(string))
 	email := user.Email
 	welcomeMsg := Message{"server", "Hello " + email}
 	err = ws.WriteJSON(welcomeMsg)
@@ -285,7 +238,7 @@ func handleMessages() {
 }
 
 // Gin Middleware that requires the user to be authenticated in order to go to certain routes
-func AuthRequired() gin.HandlerFunc {
+func authRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session := sessions.Default(c)
 		v := session.Get("user-id")
@@ -317,7 +270,7 @@ func main() {
 
 	// Protect our endpoints w/ custom middleware
 	authorized := r.Group("/")
-	authorized.Use(AuthRequired())
+	authorized.Use(authRequired())
 	{
 		// Allow js and css static files to be accessed
 		authorized.Static("/static", "./static")

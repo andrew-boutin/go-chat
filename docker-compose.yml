@@ -5,8 +5,8 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - .:/go/src/go-chat
-    working_dir: /go/src/go-chat
-    command: go run src/main.go
+      - .:/go/src/github.com/andrew-boutin/go-chat
+    working_dir: /go/src/github.com/andrew-boutin/go-chat
+    command: go run main.go
   redis:
     image: redis:alpine
