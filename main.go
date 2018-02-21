@@ -130,8 +130,6 @@ func authHandler(c *gin.Context) {
 	defer googleUserData.Body.Close()
 	data, _ := ioutil.ReadAll(googleUserData.Body)
 
-	// TODO: Require auth to go to pages..
-
 	var user user.User
 	err = json.Unmarshal(data, &user)
 

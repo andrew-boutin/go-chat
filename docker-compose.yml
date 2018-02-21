@@ -1,12 +1,12 @@
 version: '2'
 services:
   go-chat:
-    image: "golang:1.7-alpine"
+    build: .
     ports:
       - "8080:8080"
     volumes:
       - .:/go/src/github.com/andrew-boutin/go-chat
     working_dir: /go/src/github.com/andrew-boutin/go-chat
-    command: go run main.go
+    command: [sh, -c, "glide install && go run main.go"]
   redis:
     image: redis:alpine

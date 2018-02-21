@@ -6,14 +6,16 @@ Golang chat app built mainly for learning Go.
 
 - [Docker](https://www.docker.com/)
 - [Docker-Compose](https://docs.docker.com/compose/)
-- [Glide](https://github.com/Masterminds/glide)
 
 ## Run
 
+*Follow Google Integration section first*
+
     ```bash
-    glide up
-    docker-compose up
+    docker-compose up -d
     ```
+
+Go chat on `localhost:8080`.
 
 ## Redis Store
 
@@ -33,6 +35,10 @@ Client ID and Client Secret for your application once it's created.
 
 You will need to create a `creds.json` file that has the properties `cid` and `csecret`. These should contain the values for your Client ID and Client
 Secret for your Google application. This will allow go-chat to use the Google APIs to get user data.
+
+## Glide
+
+We use [Glide](https://github.com/Masterminds/glide) to handle dependency management. The `glide.yaml` defines the dependencies. Compose builds our `dockerfile` which uses a Go base image and then installs `Glide` in it. When the container starts up it calls `glide install` to install all of the dependencies before starting the chat app.
 
 ## Credit
 
