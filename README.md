@@ -11,9 +11,9 @@ Golang chat app built mainly for learning Go.
 
 *Follow Google Integration section first*
 
-    ```bash
-    docker-compose up -d
-    ```
+```bash
+docker-compose up -d
+```
 
 Go chat on `localhost:8080`.
 
@@ -21,9 +21,10 @@ Go chat on `localhost:8080`.
 
 This utilizes [Redis](https://redis.io/) as a store for connection and user info.
 
-## Session Management and Middleware
+## Gin Session Management and Middleware
 
-This uses [Gin](https://github.com/gin-gonic/gin) and [Gin Sessions](https://github.com/gin-contrib/sessions) for session management, tied into the Redis store, and for middleware.
+This uses [Gin](https://github.com/gin-gonic/gin) and [Gin Sessions](https://github.com/gin-contrib/sessions) for middleware and session management
+which is tied into the Redis store.
 
 ## Google Integration
 
@@ -36,11 +37,11 @@ Client ID and Client Secret for your application once it's created.
 You will need to create a `creds.json` file that has the properties `cid` and `csecret`. These should contain the values for your Client ID and Client
 Secret for your Google application. This will allow go-chat to use the Google APIs to get user data.
 
-## Glide
+## Glide Dependency Management
 
 We use [Glide](https://github.com/Masterminds/glide) to handle dependency management. The `glide.yaml` defines the dependencies. Compose builds our `dockerfile` which uses a Go base image and then installs `Glide` in it. When the container starts up it calls `glide install` to install all of the dependencies before starting the chat app.
 
-## Credit
+## References
 
 - [Go Chat App](https://scotch.io/bar-talk/build-a-realtime-chat-server-with-go-and-websockets) for Gorilla WebSocket info.
 - [Ramblings of a Build Engineer](https://skarlso.github.io/2016/06/12/google-signin-with-go/) was used as a guide for this.
