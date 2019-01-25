@@ -1,6 +1,6 @@
 # Go Chat
 
-A Golang chat app with Google authentication.
+A chat app written in Go that allows you to chat with other users. Log in with Google to allow the app to know who you are. See what other users are logged on, send messages, and receive messages. This project was primarily for learning Go and brushing up on things such as Redis and Docker.
 
 ![Go Chat In Action](docs/gochat.png)
 
