@@ -2,6 +2,7 @@ var input = document.getElementById("input");
 var button = document.getElementById("button");
 var textArea = document.getElementById("textarea");
 var users = document.getElementById("users");
+var username = "";
 
 input.addEventListener("keyup", function(event) {
     event.preventDefault();
@@ -35,15 +36,24 @@ ws.onmessage = function(msgevent){
     if(obj.username == "users") {
         users.innerHTML = "Users: " + obj.message;
     }
+    else if(obj.username == "server" && obj.message.startsWith("Hello ")) {
+        username = obj.message.substring(obj.message.indexOf("Hello ") + "Hello ".length);
+    }
     else { // Add a chat message
-        displayMsg(obj.username + ": " + obj.message);
+        var fromSelf = obj.username == username;
+        displayMsg(obj.username + ": " + obj.message, fromSelf);
     }
 };
 
-function displayMsg(msg){
-    textArea.innerHTML += "<br>" + msg;
+function displayMsg(msg, fromSelf=false){
+    textArea.innerHTML += "<br>"
+    var newMsg = msg;
+    if(fromSelf) {
+        newMsg = "<i>" + newMsg + "</i>";
+    }
+    textArea.innerHTML += newMsg;
 };
 
 function sendMsg() {
-    ws.send('{"message":"' + input.value + '"}');
+    ws.send('{"username":"' + username + '", "message":"' + input.value + '"}');
 };

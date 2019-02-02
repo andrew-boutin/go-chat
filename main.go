@@ -217,11 +217,12 @@ func handleMessages() {
 		msg := <-broadcast
 
 		// Send the message to all of the registered clients
-		for ws, email := range clients {
+		for ws := range clients {
+			// TODO: What is this about...
 			// Could be a system message that already defines the username
-			if msg.Username == "" {
-				msg.Username = email
-			}
+			// if msg.Username == "" {
+			// 	msg.Username = email
+			// }
 
 			err := ws.WriteJSON(msg)
 
